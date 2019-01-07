@@ -1,0 +1,53 @@
+version: '3'
+services:
+
+  react:
+    image: ketochart-react:latest
+    command: npm start
+    environment:
+      - PORT=3000
+      - REACT_APP_API_URI=${HTTP_PROTOCOL}://${API_SUBDOMAIN}.${DOMAIN}:${API_PORT}
+    ports:
+      - "${REACT_PORT}:3000"
+    depends_on:
+      - api
+    volumes:
+      - "/home/dgrote/git/growlsoft/ketochart-react:/usr/src/app"
+
+  api:
+    image: ketochart-api:latest
+    command: sh -c "npm --prefix server run db:migrate && npm --prefix server start"
+    environment:
+      - PORT=3000
+      - DEBUG=${API_DEBUG}
+      - KETOCHARTDB_MYSQL_URL=mysql://${KETOCHARTDB_MYSQL_USER}:${KETOCHARTDB_MYSQL_PASSWORD}@ketochartdb.:${KETOCHARTDB_MYSQL_PORT}/${KETOCHARTDB_MYSQL_DATABASE}
+      - AUTH0_DOMAIN
+      - AUTH0_CLIENT_ID
+      - AUTH0_CLIENT_SECRET
+      - AUTH0_NON_INTERACTIVE_CLIENT_ID
+      - AUTH0_NON_INTERACTIVE_CLIENT_SECRET
+      - AUTH0_CALLBACK_URL=${HTTP_PROTOCOL}://${API_SUBDOMAIN}.${DOMAIN}:${API_PORT}/callback
+      - AUTH0_RETURNTO_LOGOUT_URL=${HTTP_PROTOCOL}://${API_SUBDOMAIN}.${DOMAIN}:${API_PORT}/logout
+      - AUTH0_CALLBACK_REDIRECT=${HTTP_PROTOCOL}://${REACT_SUBDOMAIN}.${DOMAIN}:${REACT_PORT}/summary
+      - AUTH0_LOGOUT_REDIRECT=${HTTP_PROTOCOL}://${REACT_SUBDOMAIN}.${DOMAIN}:${REACT_PORT}/
+      - COOKIE_DOMAIN=.${DOMAIN}
+      - SESSION_SECRET=${API_SESSION_SECRET}
+      - ALLOWED_CORS_ORIGINS=${API_ALLOWED_CORS_ORIGINS}
+      - UPLOAD_REDIRECT_URL=${HTTP_PROTOCOL}://${REACT_SUBDOMAIN}.${DOMAIN}:${REACT_PORT}/summary
+    ports:
+      - "${API_PORT}:3000"
+    depends_on:
+      - ketochartdb
+    volumes:
+      - "/home/dgrote/git/growlsoft/ketochart:/usr/src/app"
+
+  ketochartdb:
+    image: mysql:5.7
+    command: mysqld --port ${KETOCHARTDB_MYSQL_PORT}
+    environment:
+      - MYSQL_ROOT_PASSWORD=${KETOCHARTDB_MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${KETOCHARTDB_MYSQL_DATABASE}
+      - MYSQL_USER=${KETOCHARTDB_MYSQL_USER}
+      - MYSQL_PASSWORD=${KETOCHARTDB_MYSQL_PASSWORD}
+    volumes:
+      - ${KETOCHARTDB_MYSQL_STORAGE}:/var/lib/mysql
